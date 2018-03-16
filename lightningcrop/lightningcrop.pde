@@ -4,12 +4,14 @@ PImage output;
 int boxScale = 50;
 int ratioSelect = 5;
 int[] selectionCorners;
+int cropMode = 0;
 float ratio;
 String friendlyRatio = "1x1";
 int displayMode = 1;
 boolean showRatio = true;
 String filename;
 boolean warned = false;
+int cropStatus = 0; //0: no selection, 1: one point selected, 2: both points selected
 
 void setup() {
   size(480, 360);
@@ -68,7 +70,7 @@ void draw() {
     noStroke();
   }
   boxInit();
-  if(displayMode > 0){
+  if(displayMode > 0 && cropMode == 0){
     //sides
     shading(selectionCorners[0], selectionCorners[1], -1, selectionCorners[3]); //left
     shading(selectionCorners[2], selectionCorners[1], width+1, selectionCorners[3]); //right
@@ -80,20 +82,34 @@ void draw() {
     shading(selectionCorners[0], selectionCorners[3], -1, height+1); //bottom left
     shading(selectionCorners[2], selectionCorners[3], width+1, height+1); //bottom right
   }
-  //bounding boxes
-  else {
-    box(3, 0); //black
+  if (cropMode > 0 && cropStatus != 1) {
+    crosshair(3,0);
+    crosshair(1, 255);
   }
-  box(1, 255); //white
+  //bounding boxes
+  if(cropMode == 0 || !(cropStatus == 0)) {
+    box(3, 0); //black
+    box(1, 255); //white
+  }
   if (showRatio){
     drawText(friendlyRatio);
   }
 }
 
 void boxInit() {
-  float HScaleRatio = boxScale * ratio;
-  selectionCorners = setCorners(mouseX-((int) HScaleRatio), mouseY-((int) boxScale), mouseX+((int) HScaleRatio), mouseY+((int) boxScale));
-  /* left | top | right | bottom */
+  if (cropMode == 0) { //classic box mode
+    float HScaleRatio = boxScale * ratio;
+    selectionCorners = setCorners(mouseX-((int) HScaleRatio), mouseY-((int) boxScale), mouseX+((int) HScaleRatio), mouseY+((int) boxScale));
+    /* left | top | right | bottom */
+  }
+  else { //drag mode
+    if (cropStatus == 1) {
+      selectionCorners = setCorners(selectionCorners[0], selectionCorners[1], mouseX, mouseY);
+    }
+    else if (cropStatus == 2) {
+      selectionCorners = setCorners(selectionCorners[0], selectionCorners[1], selectionCorners[2], selectionCorners[3]);
+    }
+  }
 }
 
 void box(int w, int c){
@@ -103,6 +119,13 @@ void box(int w, int c){
   line(selectionCorners[2], selectionCorners[3], selectionCorners[0], selectionCorners[3]); //bottom
   line(selectionCorners[0], selectionCorners[1], selectionCorners[0], selectionCorners[3]); //left
   line(selectionCorners[2], selectionCorners[3], selectionCorners[2], selectionCorners[1]); //right
+}
+
+void crosshair(int w, int c){
+  stroke(c);
+  strokeWeight(w);
+  line(mouseX+10, mouseY, mouseX-10, mouseY);
+  line(mouseX, mouseY+10, mouseX, mouseY-10);
 }
 
 void shading(int x1, int y1, int x2, int y2) {
@@ -186,11 +209,34 @@ void mouseWheel(MouseEvent event){
 
 void mousePressed() { //mouse clicked, check and trigger save
   if (mouseButton == LEFT){
-    int sWidth = selectionCorners[2] - selectionCorners[0];
-    int sHeight = selectionCorners[3] - selectionCorners[1];
-    output = createImage(sWidth, sHeight, RGB);
-    output = newBG.get(selectionCorners[0], selectionCorners[1], sWidth, sHeight);
-    output.save(filename+"-"+frameCount+".png");
+    if (cropMode == 0) {
+      int sWidth = selectionCorners[2] - selectionCorners[0];
+      int sHeight = selectionCorners[3] - selectionCorners[1];
+      output = createImage(sWidth, sHeight, RGB);
+      output = newBG.get(selectionCorners[0], selectionCorners[1], sWidth, sHeight);
+      output.save(filename+"-"+frameCount+".png");
+    }
+    else {
+      switch (cropStatus) {
+        case 0:
+          selectionCorners[0] = mouseX;
+          selectionCorners[1] = mouseY;
+          cropStatus++;
+          break;
+        case 1:
+          selectionCorners[2] = mouseX;
+          selectionCorners[3] = mouseY;
+          cropStatus++;
+          break;
+        case 2:
+          int sWidth = selectionCorners[2] - selectionCorners[0];
+          int sHeight = selectionCorners[3] - selectionCorners[1];
+          output = createImage(sWidth, sHeight, RGB);
+          output = newBG.get(selectionCorners[0], selectionCorners[1], sWidth, sHeight);
+          output.save(filename+"-"+frameCount+".png");
+          cropStatus = 0;
+      }
+    }
   }
 }
 
@@ -198,13 +244,16 @@ void keyPressed() {
   if (key == 'm' || key == 'M'){ //change box display mode
     displayMode = (displayMode+1)%3;
   }
-  if (key == 'r' || key == 'R'){ //toggle ratio printout
+  else if (key == 'r' || key == 'R'){ //toggle ratio printout
     showRatio = !showRatio;
   }
-  if (key == 'o' || key == 'O'){ //open new image file
+  else if (key == 'q' || key == 'Q'){ //toggle ratio printout
+    cropMode = (cropMode+1)%2;
+  }
+  else if (key == 'o' || key == 'O'){ //open new image file
     selectInput("Select an image to work with...", "filepicked");
   }
-  if (key == '+') { //scale window up (zoom in)
+  else if (key == '+') { //scale window up (zoom in)
     if (!warned) {
       sysprint("WARNING", "Scaling is considered experimental.");
       sysprint("WARNING", "What works on one platform may work differently or may not work at all on another platform.");
@@ -214,7 +263,7 @@ void keyPressed() {
     newBG = imageScale(bg, 1.1);
     surface.setSize(newBG.width, newBG.height);
   }
-  if (key == '-') { //scale window down (zoom out)
+  else if (key == '-') { //scale window down (zoom out)
     if (width >= 150) {
       if (!warned) {
         sysprint("WARNING", "Scaling is considered experimental.");
