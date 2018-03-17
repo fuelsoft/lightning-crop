@@ -70,29 +70,38 @@ void draw() {
     noStroke();
   }
   boxInit();
-  if(displayMode > 0 && cropMode == 0){
+  if(displayMode > 0 && (cropMode == 0 || cropStatus == 2)){
     //sides
     shading(selectionCorners[0], selectionCorners[1], -1, selectionCorners[3]); //left
     shading(selectionCorners[2], selectionCorners[1], width+1, selectionCorners[3]); //right
     shading(selectionCorners[0], selectionCorners[1], selectionCorners[2], -1); //top
     shading(selectionCorners[0], selectionCorners[3], selectionCorners[2], height+1); //bottom
     //corners
+    // int a, b, c, d, g;
+    // a = -1;
+    // b = -1;
+    // c = height+1;
+    // d = width+1;
+    //corners
     shading(selectionCorners[0], selectionCorners[1], -1, -1); //top left
     shading(selectionCorners[2], selectionCorners[1], width+1, -1); //top right
     shading(selectionCorners[0], selectionCorners[3], -1, height+1); //bottom left
     shading(selectionCorners[2], selectionCorners[3], width+1, height+1); //bottom right
   }
-  if (cropMode > 0 && cropStatus != 1) {
+  if ((cropMode > 0 && cropStatus != 1) || cropMode == 0) {
     crosshair(3,0);
     crosshair(1, 255);
   }
   //bounding boxes
-  if(cropMode == 0 || !(cropStatus == 0)) {
+  if(cropMode == 0 || cropStatus != 0) {
     box(3, 0); //black
     box(1, 255); //white
   }
-  if (showRatio){
+  if (showRatio && cropMode == 0){
     drawText(friendlyRatio);
+  }
+  else if (cropMode != 0 && cropStatus != 0) {
+    drawText(abs(selectionCorners[2]-selectionCorners[0])+"X"+abs(selectionCorners[3]-selectionCorners[1]));
   }
 }
 
@@ -217,26 +226,41 @@ void mousePressed() { //mouse clicked, check and trigger save
       output.save(filename+"-"+frameCount+".png");
     }
     else {
-      switch (cropStatus) {
-        case 0:
+      if (cropStatus == 0) {
           selectionCorners[0] = mouseX;
           selectionCorners[1] = mouseY;
           cropStatus++;
-          break;
-        case 1:
-          selectionCorners[2] = mouseX;
-          selectionCorners[3] = mouseY;
-          cropStatus++;
-          break;
-        case 2:
-          int sWidth = selectionCorners[2] - selectionCorners[0];
-          int sHeight = selectionCorners[3] - selectionCorners[1];
-          output = createImage(sWidth, sHeight, RGB);
-          output = newBG.get(selectionCorners[0], selectionCorners[1], sWidth, sHeight);
-          output.save(filename+"-"+frameCount+".png");
-          cropStatus = 0;
       }
     }
+  }
+}
+
+void mouseReleased() {
+  if (cropStatus == 1) {
+    if (mouseX < selectionCorners[0]) {
+      selectionCorners[2] = selectionCorners[0];
+      selectionCorners[0] = mouseX;
+    }
+    else {
+      selectionCorners[2] = mouseX;
+    }
+    if (mouseY < selectionCorners[1]) {
+      selectionCorners[3] = selectionCorners[1];
+      selectionCorners[1] = mouseY;
+    }
+    else {
+      selectionCorners[3] = mouseY;
+    }
+    cropStatus++;
+  }
+}
+
+void mouseDragged(){
+  if (cropStatus == 2) {
+    selectionCorners[0] = selectionCorners[0] + (mouseX - pmouseX);
+    selectionCorners[1] = selectionCorners[1] + (mouseY - pmouseY);
+    selectionCorners[2] = selectionCorners[2] + (mouseX - pmouseX);
+    selectionCorners[3] = selectionCorners[3] + (mouseY - pmouseY);
   }
 }
 
@@ -249,9 +273,22 @@ void keyPressed() {
   }
   else if (key == 'q' || key == 'Q'){ //toggle ratio printout
     cropMode = (cropMode+1)%2;
+    cropStatus = 0;
+    showRatio = !showRatio;
   }
   else if (key == 'o' || key == 'O'){ //open new image file
     selectInput("Select an image to work with...", "filepicked");
+  }
+  else if (key == ' ') {
+    cropStatus = 0;
+  }
+  else if ((key == ENTER || key == RETURN) && cropStatus == 2) {
+    int sWidth = selectionCorners[2] - selectionCorners[0];
+    int sHeight = selectionCorners[3] - selectionCorners[1];
+    output = createImage(sWidth, sHeight, RGB);
+    output = newBG.get(selectionCorners[0], selectionCorners[1], sWidth, sHeight);
+    output.save(filename+"-"+frameCount+".png");
+    cropStatus = 0;
   }
   else if (key == '+') { //scale window up (zoom in)
     if (!warned) {
