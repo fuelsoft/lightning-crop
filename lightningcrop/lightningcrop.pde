@@ -100,8 +100,8 @@ void draw() {
   if (showRatio && cropMode == 0){
     drawText(friendlyRatio);
   }
-  else if (cropMode != 0 && cropStatus != 0) {
-    drawText(abs(selectionCorners[2]-selectionCorners[0])+"X"+abs(selectionCorners[3]-selectionCorners[1]));
+  else if (cropMode != 0 && cropStatus != 0 && showRatio) {
+    drawText(abs(selectionCorners[2]-selectionCorners[0])+"x"+abs(selectionCorners[3]-selectionCorners[1]));
   }
 }
 
@@ -271,7 +271,7 @@ void keyPressed() {
   else if (key == 'r' || key == 'R'){ //toggle ratio printout
     showRatio = !showRatio;
   }
-  else if (key == 'q' || key == 'Q'){ //toggle ratio printout
+  else if (key == 'q' || key == 'Q'){ //change crop mode
     cropMode = (cropMode+1)%2;
     cropStatus = 0;
     showRatio = !showRatio;
@@ -279,7 +279,7 @@ void keyPressed() {
   else if (key == 'o' || key == 'O'){ //open new image file
     selectInput("Select an image to work with...", "filepicked");
   }
-  else if (key == ' ') {
+  else if (key == ' ') { //reset free crop
     cropStatus = 0;
   }
   else if ((key == ENTER || key == RETURN) && cropStatus == 2) {
